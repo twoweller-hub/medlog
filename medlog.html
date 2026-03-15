@@ -311,6 +311,9 @@
     .medicine-list-info .name { font-size: 15px; font-weight: 600; }
     .medicine-list-info .sub { font-size: 12px; color: #999; margin-top: 2px; }
     .medicine-list-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .medicine-list-item.paused { opacity: 0.5; }
+    .btn-pause { background: #e8ecf0; color: #555; font-size: 13px; padding: 6px 12px; }
+    .btn-resume { background: #34c678; color: white; font-size: 13px; padding: 6px 12px; }
 
     .badge {
       display: inline-block;
@@ -710,8 +713,9 @@
     document.getElementById('today-date').textContent =
       `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`;
 
-    const regularMeds = medicines.filter(m => medType(m) === 'regular');
-    const prnMeds = medicines.filter(m => medType(m) === 'prn');
+    const activeMeds = medicines.filter(m => m.active !== false);
+    const regularMeds = activeMeds.filter(m => medType(m) === 'regular');
+    const prnMeds = activeMeds.filter(m => medType(m) === 'prn');
 
     if (medicines.length === 0) {
       document.getElementById('today-list').innerHTML =
@@ -928,6 +932,17 @@
 
   function cancelEdit() { resetForm(); }
 
+  function toggleMedicinePause(id) {
+    const { medicines } = getData();
+    const idx = medicines.findIndex(m => m.id === id);
+    if (idx === -1) return;
+    const paused = medicines[idx].active === false;
+    medicines[idx].active = paused ? true : false;
+    saveMedicines(medicines);
+    renderMedicineList();
+    showToast(paused ? '服用を再開しました' : '一時停止しました');
+  }
+
   function deleteMedicine(id) {
     if (!confirm('この薬を削除しますか？\n（過去の服薬記録は残ります）')) return;
     const { medicines } = getData();
@@ -1006,13 +1021,17 @@
       if (type === 'regular' && m.timings?.length) subParts.push(m.timings.join('・'));
       if (m.memo) subParts.push(m.memo);
       const sub = subParts.join(' ／ ');
-      return `<div class="medicine-list-item">
+      const paused = m.active === false;
+      return `<div class="medicine-list-item${paused ? ' paused' : ''}">
         <div class="medicine-list-info">
           <div class="name">${escHtml(m.name)}${badgeHtml}</div>
-          <div class="sub">${escHtml(sub)}</div>
+          <div class="sub">${paused ? '一時停止中　' : ''}${escHtml(sub)}</div>
         </div>
         <div class="medicine-list-actions">
-          <button class="btn btn-secondary" onclick="openEditModal('${m.id}')">編集</button>
+          ${paused
+            ? `<button class="btn btn-resume" onclick="toggleMedicinePause('${m.id}')">再開</button>`
+            : `<button class="btn btn-secondary" onclick="openEditModal('${m.id}')">編集</button>
+               <button class="btn btn-pause" onclick="toggleMedicinePause('${m.id}')">一時停止</button>`}
           <button class="btn btn-danger" onclick="deleteMedicine('${m.id}')">削除</button>
         </div>
       </div>`;
@@ -1082,15 +1101,19 @@
     }
 
     const dates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
-    const regularMeds = medicines.filter(m => medType(m) === 'regular');
-    const prnMeds = medicines.filter(m => medType(m) === 'prn');
+    const activeMeds = medicines.filter(m => m.active !== false);
+    const pausedMeds = medicines.filter(m => m.active === false);
+    const regularMeds = activeMeds.filter(m => medType(m) === 'regular');
+    const prnMeds = activeMeds.filter(m => medType(m) === 'prn');
+    const pausedRegularMeds = pausedMeds.filter(m => medType(m) === 'regular');
+    const pausedPrnMeds = pausedMeds.filter(m => medType(m) === 'prn');
 
     let html = '';
     dates.forEach(dateKey => {
       const dayLog = logs[dateKey] || {};
       let dayHtml = '';
 
-      // 定期服用の履歴
+      // 定期服用の履歴（アクティブ：全日表示）
       regularMeds.forEach(m => {
         m.timings.forEach(timing => {
           const entry = dayLog[m.id]?.[timing];
@@ -1113,13 +1136,52 @@
         });
       });
 
-      // 頓服の履歴
+      // 定期服用の履歴（停止中：服用記録がある日のみ表示）
+      pausedRegularMeds.forEach(m => {
+        m.timings.forEach(timing => {
+          const entry = dayLog[m.id]?.[timing];
+          if (!entry?.taken) return;
+          const taken = entry.taken || false;
+          const time = entry.time ? formatTime(entry.time) : null;
+          const sub = [m.dose, m.memo].filter(Boolean).join('・');
+
+          dayHtml += `<div class="history-item" style="opacity:0.6">
+            <span class="history-status">${taken ? '✅' : '❌'}</span>
+            <div style="flex:1;min-width:0">
+              <span class="history-med-name">${escHtml(m.name)}</span>
+              ${sub ? `<span style="font-size:12px;color:#bbb;margin-left:6px">${escHtml(sub)}</span>` : ''}
+            </div>
+            <span class="history-timing">${timing}</span>
+            ${taken && time ? `<span class="history-time">${time}</span>` : ''}
+          </div>`;
+        });
+      });
+
+      // 頓服の履歴（アクティブ）
       prnMeds.forEach(m => {
         const times = dayLog[m.id]?.prn || [];
         const sub = [m.dose, m.memo].filter(Boolean).join('・');
         if (times.length > 0) {
           const timesStr = times.map(t => formatTime(t)).join(' / ');
           dayHtml += `<div class="history-item">
+            <span class="history-status">💊</span>
+            <div style="flex:1;min-width:0">
+              <span class="history-med-name">${escHtml(m.name)}</span>
+              ${sub ? `<span style="font-size:12px;color:#bbb;margin-left:6px">${escHtml(sub)}</span>` : ''}
+            </div>
+            <span class="history-timing">頓服</span>
+            <span class="history-prn-time">${timesStr}（${times.length}回）</span>
+          </div>`;
+        }
+      });
+
+      // 頓服の履歴（停止中：ログがある日のみ）
+      pausedPrnMeds.forEach(m => {
+        const times = dayLog[m.id]?.prn || [];
+        const sub = [m.dose, m.memo].filter(Boolean).join('・');
+        if (times.length > 0) {
+          const timesStr = times.map(t => formatTime(t)).join(' / ');
+          dayHtml += `<div class="history-item" style="opacity:0.6">
             <span class="history-status">💊</span>
             <div style="flex:1;min-width:0">
               <span class="history-med-name">${escHtml(m.name)}</span>
