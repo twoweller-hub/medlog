@@ -346,6 +346,32 @@
     .restore-label:active { opacity: 0.8; }
 
     /* 履歴 */
+    /* 月ナビゲーション */
+    .month-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .month-nav-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #4a90d9;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .month-nav-btn:hover { background: #f0f5ff; }
+    .month-nav-btn:disabled { color: #ccc; cursor: default; }
+    .month-nav-btn:disabled:hover { background: none; }
+    .month-nav-label { font-size: 16px; font-weight: 700; }
+
     .history-date {
       font-size: 13px;
       font-weight: 700;
@@ -556,6 +582,11 @@
 
 <!-- タブ3：服薬履歴 -->
 <div id="tab-history" class="tab-content">
+  <div class="month-nav">
+    <button class="month-nav-btn" id="history-prev-btn" onclick="changeHistoryMonth(-1)">◀</button>
+    <span class="month-nav-label" id="history-month-label"></span>
+    <button class="month-nav-btn" id="history-next-btn" onclick="changeHistoryMonth(1)">▶</button>
+  </div>
   <div id="history-list"></div>
 </div>
 
@@ -1082,23 +1113,43 @@
   // ==============================
   // タブ3：服薬履歴
   // ==============================
+  // 現在表示中の年月（{ year, month } month は0始まり）
+  let _historyYM = { year: new Date().getFullYear(), month: new Date().getMonth() };
+
+  function changeHistoryMonth(delta) {
+    let { year, month } = _historyYM;
+    month += delta;
+    if (month < 0) { month = 11; year--; }
+    if (month > 11) { month = 0; year++; }
+    _historyYM = { year, month };
+    renderHistory();
+  }
+
   function renderHistory() {
     const { medicines, logs } = getData();
     const container = document.getElementById('history-list');
+    const { year, month } = _historyYM;
+    const today = new Date();
+    const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
+    // 月ナビ更新
+    document.getElementById('history-month-label').textContent = `${year}年${month + 1}月`;
+    document.getElementById('history-next-btn').disabled = isCurrentMonth;
 
     if (medicines.length === 0) {
       container.innerHTML = '<p class="empty-msg">薬が登録されていません</p>';
       return;
     }
 
-    const dateSet = new Set(Object.keys(logs));
-    const today = new Date();
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      dateSet.add(k);
+    // 表示月の全日付を生成（今日より未来は除く）
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dateSet = new Set();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if (key <= todayKey()) dateSet.add(key);
     }
+    // その月のログにある日付も追加（念のため）
+    Object.keys(logs).forEach(k => { if (k.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)) dateSet.add(k); });
 
     const dates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
     const activeMeds = medicines.filter(m => m.active !== false);
