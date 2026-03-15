@@ -612,6 +612,7 @@
       <button class="btn btn-secondary" onclick="closeTimeModal()">キャンセル</button>
       <button class="btn btn-primary" onclick="saveTimeEdit()">保存</button>
     </div>
+    <button class="btn btn-danger" id="time-modal-unmark-btn" style="display:none;width:100%;margin-top:8px" onclick="unmarkFromModal()">未服用にする</button>
   </div>
 </div>
 
@@ -1091,7 +1092,7 @@
           const sub = [m.dose, m.memo].filter(Boolean).join('・');
 
           dayHtml += `<div class="history-item">
-            <span class="history-status">${taken ? '✅' : '❌'}</span>
+            <span class="history-status" style="${taken ? 'cursor:pointer' : ''}" ${taken ? `onclick="unmarkHistoryTaken('${dateKey}','${m.id}','${timing}','${escHtml(m.name)}')"` : ''}>${taken ? '✅' : '❌'}</span>
             <div style="flex:1;min-width:0">
               <span class="history-med-name">${escHtml(m.name)}</span>
               ${sub ? `<span style="font-size:12px;color:#bbb;margin-left:6px">${escHtml(sub)}</span>` : ''}
@@ -1167,6 +1168,7 @@
     _timeEditContext = { type: 'regular', medId, timing, oldIso: isoStr, dateKey: dateKey || todayKey() };
     document.getElementById('time-modal-title').textContent = `${timing}の服用時刻を修正`;
     document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
+    document.getElementById('time-modal-unmark-btn').style.display = '';
     document.getElementById('time-modal-overlay').classList.add('open');
   }
 
@@ -1174,6 +1176,7 @@
     _timeEditContext = { type: 'regular', medId, timing, oldIso: null, dateKey, isNew: true };
     document.getElementById('time-modal-title').textContent = `${medName}（${timing}）の服用時刻を入力`;
     document.getElementById('time-input').value = '';
+    document.getElementById('time-modal-unmark-btn').style.display = 'none';
     document.getElementById('time-modal-overlay').classList.add('open');
   }
 
@@ -1181,6 +1184,7 @@
     _timeEditContext = { type: 'prn', medId, oldIso: isoStr, dateKey: todayKey() };
     document.getElementById('time-modal-title').textContent = '頓服の服用時刻を修正';
     document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
+    document.getElementById('time-modal-unmark-btn').style.display = 'none';
     document.getElementById('time-modal-overlay').classList.add('open');
   }
 
@@ -1223,6 +1227,33 @@
       closeTimeModal();
       renderToday();
       showToast('時刻を修正しました');
+    }
+  }
+
+  function unmarkFromModal() {
+    if (!_timeEditContext) return;
+    const { dateKey, medId, timing } = _timeEditContext;
+    if (!confirm('服用記録を取り消しますか？')) return;
+    const { logs } = getData();
+    if (logs[dateKey]?.[medId]?.[timing]) {
+      logs[dateKey][medId][timing] = { taken: false, time: null };
+      saveLogs(logs);
+      closeTimeModal();
+      if (dateKey === todayKey()) renderToday();
+      renderHistory();
+      showToast('服用記録を取り消しました');
+    }
+  }
+
+  function unmarkHistoryTaken(dateKey, medId, timing, medName) {
+    if (!confirm(`「${medName}」（${timing}）の服用記録を取り消しますか？`)) return;
+    const { logs } = getData();
+    if (logs[dateKey]?.[medId]?.[timing]) {
+      logs[dateKey][medId][timing] = { taken: false, time: null };
+      saveLogs(logs);
+      if (dateKey === todayKey()) renderToday();
+      renderHistory();
+      showToast('服用記録を取り消しました');
     }
   }
 
