@@ -385,6 +385,35 @@
     .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
     .modal-actions .btn { flex: 1; }
 
+    /* 時刻修正モーダル */
+    .time-modal {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 300px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .time-modal h3 { font-size: 16px; margin-bottom: 16px; }
+    input[type="time"] {
+      width: 100%;
+      padding: 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 22px;
+      text-align: center;
+      outline: none;
+      margin-bottom: 16px;
+    }
+    input[type="time"]:focus { border-color: #4a90d9; }
+    .time-modal-actions { display: flex; gap: 8px; }
+    .time-modal-actions .btn { flex: 1; }
+
+    .med-time { cursor: pointer; text-decoration: underline dotted; }
+    .prn-time-chip { cursor: default; }
+    .prn-time-value { cursor: pointer; text-decoration: underline dotted; }
+
     .toast {
       position: fixed;
       bottom: 24px;
@@ -570,6 +599,18 @@
   </div>
 </div>
 
+<!-- 時刻修正モーダル -->
+<div class="modal-overlay" id="time-modal-overlay">
+  <div class="time-modal">
+    <h3 id="time-modal-title">服用時刻を修正</h3>
+    <input type="time" id="time-input">
+    <div class="time-modal-actions">
+      <button class="btn btn-secondary" onclick="closeTimeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveTimeEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- トースト通知 -->
 <div class="toast" id="toast"></div>
 
@@ -704,7 +745,7 @@
             <div class="med-name">${escHtml(m.name)}</div>
             ${sub ? `<div class="med-dose">${escHtml(sub)}</div>` : ''}
           </div>
-          ${taken ? `<div class="med-time">${time}</div>` : ''}
+          ${taken ? `<div class="med-time" onclick="event.stopPropagation();openTimeEdit('${m.id}','${timing}','${entry?.time || ''}')">${time} ✎</div>` : ''}
         </div>`;
       });
 
@@ -723,7 +764,7 @@
 
         const chipsHtml = times.map(iso =>
           `<div class="prn-time-chip">
-            ${formatTime(iso)}
+            <span class="prn-time-value" onclick="openPrnTimeEdit('${m.id}','${iso}')">${formatTime(iso)} ✎</span>
             <button onclick="removePrnDose('${m.id}','${iso}')" title="取り消し">×</button>
           </div>`
         ).join('');
@@ -1110,6 +1151,64 @@
 
   document.getElementById('modal-overlay').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
+  });
+
+  // ==============================
+  // 時刻修正モーダル
+  // ==============================
+  let _timeEditContext = null; // { type: 'regular'|'prn', medId, timing?, oldIso }
+
+  function openTimeEdit(medId, timing, isoStr) {
+    _timeEditContext = { type: 'regular', medId, timing, oldIso: isoStr };
+    document.getElementById('time-modal-title').textContent = `${timing}の服用時刻を修正`;
+    document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
+    document.getElementById('time-modal-overlay').classList.add('open');
+  }
+
+  function openPrnTimeEdit(medId, isoStr) {
+    _timeEditContext = { type: 'prn', medId, oldIso: isoStr };
+    document.getElementById('time-modal-title').textContent = '頓服の服用時刻を修正';
+    document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
+    document.getElementById('time-modal-overlay').classList.add('open');
+  }
+
+  function closeTimeModal() {
+    document.getElementById('time-modal-overlay').classList.remove('open');
+    _timeEditContext = null;
+  }
+
+  function saveTimeEdit() {
+    if (!_timeEditContext) return;
+    const timeValue = document.getElementById('time-input').value;
+    if (!timeValue) { showToast('時刻を入力してください'); return; }
+
+    const { logs } = getData();
+    const key = todayKey();
+    const [h, m] = timeValue.split(':').map(Number);
+    const newDate = new Date(_timeEditContext.oldIso || new Date());
+    newDate.setHours(h, m, 0, 0);
+    const newIso = newDate.toISOString();
+
+    if (_timeEditContext.type === 'regular') {
+      const { medId, timing } = _timeEditContext;
+      if (logs[key]?.[medId]?.[timing]) {
+        logs[key][medId][timing].time = newIso;
+      }
+    } else {
+      const { medId, oldIso } = _timeEditContext;
+      if (logs[key]?.[medId]?.prn) {
+        logs[key][medId].prn = logs[key][medId].prn.map(t => t === oldIso ? newIso : t);
+      }
+    }
+
+    saveLogs(logs);
+    closeTimeModal();
+    renderToday();
+    showToast('時刻を修正しました');
+  }
+
+  document.getElementById('time-modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeTimeModal();
   });
 
   // ==============================
