@@ -938,7 +938,7 @@
         showToast('薬の情報を更新しました');
       }
     } else {
-      medicines.push({ id: generateId(), name, dose, memo, type, timings });
+      medicines.push({ id: generateId(), name, dose, memo, type, timings, registeredAt: todayKey() });
       showToast('薬を登録しました');
     }
 
@@ -1166,6 +1166,7 @@
 
       // 定期服用の履歴（アクティブ：全日表示）
       regularMeds.forEach(m => {
+        if (m.registeredAt && dateKey < m.registeredAt) return;
         m.timings.forEach(timing => {
           const entry = dayLog[m.id]?.[timing];
           const taken = entry?.taken || false;
@@ -1210,6 +1211,7 @@
 
       // 頓服の履歴（アクティブ）
       prnMeds.forEach(m => {
+        if (m.registeredAt && dateKey < m.registeredAt) return;
         const times = dayLog[m.id]?.prn || [];
         const sub = [m.dose, m.memo].filter(Boolean).join('・');
         if (times.length > 0) {
