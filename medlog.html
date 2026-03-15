@@ -552,6 +552,10 @@
       <label>メモ（任意）</label>
       <input type="text" id="med-memo" placeholder="例：食後に服用、頭痛時">
     </div>
+    <div class="form-group">
+      <label>服用開始日</label>
+      <input type="date" id="med-registered-at" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;">
+    </div>
     <input type="hidden" id="edit-id">
     <button class="btn btn-primary" onclick="saveMedicine()">登録する</button>
     <button class="btn btn-secondary" id="cancel-edit-btn" style="display:none;margin-top:8px;width:100%" onclick="cancelEdit()">キャンセル</button>
@@ -635,6 +639,10 @@
     <div class="form-group">
       <label>メモ</label>
       <input type="text" id="modal-memo">
+    </div>
+    <div class="form-group">
+      <label>服用開始日</label>
+      <input type="date" id="modal-registered-at" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;">
     </div>
     <input type="hidden" id="modal-edit-id">
     <div class="modal-actions">
@@ -920,6 +928,7 @@
     const name = document.getElementById('med-name').value.trim();
     const dose = document.getElementById('med-dose').value.trim();
     const memo = document.getElementById('med-memo').value.trim();
+    const registeredAt = document.getElementById('med-registered-at').value || todayKey();
     const type = getSelectedType();
     const timings = type === 'regular' ? getSelectedTimings('timing-checkboxes') : [];
     const editId = document.getElementById('edit-id').value;
@@ -934,11 +943,11 @@
     if (editId) {
       const idx = medicines.findIndex(m => m.id === editId);
       if (idx !== -1) {
-        medicines[idx] = { ...medicines[idx], name, dose, memo, type, timings };
+        medicines[idx] = { ...medicines[idx], name, dose, memo, type, timings, registeredAt };
         showToast('薬の情報を更新しました');
       }
     } else {
-      medicines.push({ id: generateId(), name, dose, memo, type, timings, registeredAt: todayKey() });
+      medicines.push({ id: generateId(), name, dose, memo, type, timings, registeredAt });
       showToast('薬を登録しました');
     }
 
@@ -952,6 +961,7 @@
     document.getElementById('med-dose').value = '';
     document.getElementById('med-memo').value = '';
     document.getElementById('edit-id').value = '';
+    document.getElementById('med-registered-at').value = todayKey();
     document.getElementById('form-title').textContent = '薬を登録する';
     document.getElementById('cancel-edit-btn').style.display = 'none';
     document.querySelectorAll('#timing-checkboxes input[type="checkbox"]').forEach(cb => {
@@ -991,6 +1001,7 @@
     document.getElementById('modal-name').value = m.name;
     document.getElementById('modal-dose').value = m.dose || '';
     document.getElementById('modal-memo').value = m.memo || '';
+    document.getElementById('modal-registered-at').value = m.registeredAt || todayKey();
 
     const type = medType(m);
     modalSelectType(type);
@@ -1013,6 +1024,7 @@
     const name = document.getElementById('modal-name').value.trim();
     const dose = document.getElementById('modal-dose').value.trim();
     const memo = document.getElementById('modal-memo').value.trim();
+    const registeredAt = document.getElementById('modal-registered-at').value || todayKey();
     const type = getModalSelectedType();
     const timings = type === 'regular' ? getSelectedTimings('modal-timings') : [];
 
@@ -1024,7 +1036,7 @@
     const { medicines } = getData();
     const idx = medicines.findIndex(m => m.id === id);
     if (idx !== -1) {
-      medicines[idx] = { ...medicines[idx], name, dose, memo, type, timings };
+      medicines[idx] = { ...medicines[idx], name, dose, memo, type, timings, registeredAt };
       saveMedicines(medicines);
       showToast('薬の情報を更新しました');
     }
@@ -1375,6 +1387,7 @@
   // ==============================
   // 初期化
   // ==============================
+  document.getElementById('med-registered-at').value = todayKey();
   renderToday();
 </script>
 </body>
