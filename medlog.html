@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>服薬管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      background: #f2f4f7;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ヘッダー */
+    header {
+      background: #4a90d9;
+      color: white;
+      padding: 16px 20px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      padding-bottom: 14px;
+    }
+
+    /* タブ */
+    .tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: white;
+      border-bottom-color: white;
+    }
+
+    /* コンテンツ */
+    .tab-content { display: none; padding: 16px; }
+    .tab-content.active { display: block; }
+
+    /* カード */
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    /* 達成率バー */
+    .progress-wrap {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #555;
+    }
+    .progress-label strong { color: #1a1a2e; }
+    .progress-bar {
+      height: 10px;
+      background: #e8ecf0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #4a90d9;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    /* タイミンググループ */
+    .timing-group { margin-bottom: 16px; }
+    .timing-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+
+    /* 服薬アイテム */
+    .med-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: white;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .med-item.taken { background: #f0f9f4; }
+    .med-item:active { background: #f5f5f5; }
+
+    .med-check {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #ccc;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .med-item.taken .med-check {
+      background: #34c678;
+      border-color: #34c678;
+      color: white;
+    }
+    .med-check-icon { display: none; font-size: 13px; }
+    .med-item.taken .med-check-icon { display: block; }
+
+    .med-info { flex: 1; min-width: 0; }
+    .med-name {
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .med-item.taken .med-name { color: #888; text-decoration: line-through; }
+    .med-dose { font-size: 12px; color: #999; margin-top: 2px; }
+    .med-time {
+      font-size: 12px;
+      color: #34c678;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .empty-msg {
+      text-align: center;
+      color: #aaa;
+      font-size: 14px;
+      padding: 32px 0;
+    }
+
+    /* 薬の登録フォーム */
+    .form-group { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: #4a90d9; }
+
+    .timing-checkboxes {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .timing-check-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .timing-check-label input { display: none; }
+    .timing-check-label.selected {
+      background: #4a90d9;
+      border-color: #4a90d9;
+      color: white;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 11px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn-primary { background: #4a90d9; color: white; width: 100%; }
+    .btn-danger { background: #ff4d4d; color: white; font-size: 13px; padding: 6px 12px; }
+    .btn-secondary { background: #e8ecf0; color: #555; font-size: 13px; padding: 6px 12px; }
+
+    /* 登録済み薬一覧 */
+    .medicine-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .medicine-list-item:last-child { border-bottom: none; }
+    .medicine-list-info .name { font-size: 15px; font-weight: 600; }
+    .medicine-list-info .sub { font-size: 12px; color: #999; margin-top: 2px; }
+    .medicine-list-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* バックアップ */
+    .backup-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-backup { background: #34c678; color: white; }
+    .btn-restore { background: #f5a623; color: white; }
+    .restore-input { display: none; }
+    .restore-label {
+      display: block;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      background: #f5a623;
+      color: white;
+      transition: opacity 0.15s;
+    }
+    .restore-label:active { opacity: 0.8; }
+
+    /* 履歴 */
+    .history-date {
+      font-size: 13px;
+      font-weight: 700;
+      color: #666;
+      margin-bottom: 8px;
+      padding-top: 4px;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 14px;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-status { font-size: 16px; flex-shrink: 0; }
+    .history-med-name { font-weight: 600; flex: 1; }
+    .history-timing { color: #999; font-size: 12px; }
+    .history-time { color: #34c678; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+    .history-missed { color: #ff4d4d; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+
+    /* 編集モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .modal h3 { font-size: 17px; margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-actions .btn { flex: 1; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1a1a2e;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 200;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    section h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>💊 服薬管理</h1>
+  <nav class="tabs">
+    <button class="tab-btn active" onclick="switchTab('today')">今日</button>
+    <button class="tab-btn" onclick="switchTab('register')">薬の登録</button>
+    <button class="tab-btn" onclick="switchTab('history')">履歴</button>
+  </nav>
+</header>
+
+<!-- タブ1：今日の服薬チェック -->
+<div id="tab-today" class="tab-content active">
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="today-date"></span>
+      <strong id="today-progress">0 / 0 服用済み</strong>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+  <div id="today-list"></div>
+</div>
+
+<!-- タブ2：薬の登録 -->
+<div id="tab-register" class="tab-content">
+  <section class="card">
+    <h2 id="form-title">薬を登録する</h2>
+    <div class="form-group">
+      <label>薬の名前 <span style="color:red">*</span></label>
+      <input type="text" id="med-name" placeholder="例：ロキソニン">
+    </div>
+    <div class="form-group">
+      <label>用量</label>
+      <input type="text" id="med-dose" placeholder="例：60mg、1錠">
+    </div>
+    <div class="form-group">
+      <label>服用タイミング <span style="color:red">*</span></label>
+      <div class="timing-checkboxes" id="timing-checkboxes">
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="朝">朝
+        </label>
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="昼">昼
+        </label>
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="夜">夜
+        </label>
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="就寝前">就寝前
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>メモ（任意）</label>
+      <input type="text" id="med-memo" placeholder="例：食後に服用">
+    </div>
+    <input type="hidden" id="edit-id">
+    <button class="btn btn-primary" onclick="saveMedicine()">登録する</button>
+    <button class="btn btn-secondary" id="cancel-edit-btn" style="display:none;margin-top:8px;width:100%" onclick="cancelEdit()">キャンセル</button>
+  </section>
+
+  <section>
+    <h2 style="padding-left:4px;margin-bottom:8px">登録済みの薬</h2>
+    <div class="card" id="medicine-list">
+      <p class="empty-msg">まだ薬が登録されていません</p>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:8px">
+    <h2 style="margin-bottom:12px">バックアップ・復元</h2>
+    <div class="backup-section">
+      <button class="btn btn-backup" onclick="exportData()">データをバックアップ</button>
+      <label class="restore-label">
+        データを復元
+        <input type="file" class="restore-input" accept=".json" onchange="importData(event)">
+      </label>
+    </div>
+    <p style="font-size:12px;color:#aaa;margin-top:10px;line-height:1.6">
+      バックアップは <code>medlog_backup.json</code> として保存されます。<br>
+      復元すると現在のデータは上書きされます。
+    </p>
+  </section>
+</div>
+
+<!-- タブ3：服薬履歴 -->
+<div id="tab-history" class="tab-content">
+  <div id="history-list"></div>
+</div>
+
+<!-- 編集モーダル -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3>薬を編集する</h3>
+    <div class="form-group">
+      <label>薬の名前</label>
+      <input type="text" id="modal-name">
+    </div>
+    <div class="form-group">
+      <label>用量</label>
+      <input type="text" id="modal-dose">
+    </div>
+    <div class="form-group">
+      <label>服用タイミング</label>
+      <div class="timing-checkboxes" id="modal-timings">
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="朝">朝
+        </label>
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="昼">昼
+        </label>
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="夜">夜
+        </label>
+        <label class="timing-check-label" onclick="toggleTiming(this)">
+          <input type="checkbox" value="就寝前">就寝前
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>メモ</label>
+      <input type="text" id="modal-memo">
+    </div>
+    <input type="hidden" id="modal-edit-id">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- トースト通知 -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ==============================
+  // データ管理
+  // ==============================
+  const TIMINGS = ['朝', '昼', '夜', '就寝前'];
+
+  function getData() {
+    return {
+      medicines: JSON.parse(localStorage.getItem('medicines') || '[]'),
+      logs: JSON.parse(localStorage.getItem('logs') || '{}')
+    };
+  }
+
+  function saveMedicines(medicines) {
+    localStorage.setItem('medicines', JSON.stringify(medicines));
+  }
+
+  function saveLogs(logs) {
+    localStorage.setItem('logs', JSON.stringify(logs));
+  }
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function formatTime(isoStr) {
+    const d = new Date(isoStr);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  function formatDateLabel(key) {
+    const [y, m, d] = key.split('-');
+    const date = new Date(Number(y), Number(m)-1, Number(d));
+    const days = ['日','月','火','水','木','金','土'];
+    const today = todayKey();
+    const yesterday = (() => {
+      const t = new Date(); t.setDate(t.getDate()-1);
+      return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    })();
+    let label = `${Number(m)}月${Number(d)}日（${days[date.getDay()]}）`;
+    if (key === today) label += ' 　今日';
+    else if (key === yesterday) label += ' 　昨日';
+    return label;
+  }
+
+  function generateId() {
+    return 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  }
+
+  // ==============================
+  // タブ切替
+  // ==============================
+  function switchTab(name) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    const btns = document.querySelectorAll('.tab-btn');
+    const idx = ['today','register','history'].indexOf(name);
+    btns[idx].classList.add('active');
+    if (name === 'today') renderToday();
+    if (name === 'history') renderHistory();
+    if (name === 'register') renderMedicineList();
+  }
+
+  // ==============================
+  // タブ1：今日の服薬チェック
+  // ==============================
+  function renderToday() {
+    const { medicines, logs } = getData();
+    const key = todayKey();
+    const todayLog = logs[key] || {};
+
+    // 日付表示
+    const d = new Date();
+    const days = ['日','月','火','水','木','金','土'];
+    document.getElementById('today-date').textContent =
+      `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`;
+
+    if (medicines.length === 0) {
+      document.getElementById('today-list').innerHTML =
+        '<p class="empty-msg">薬が登録されていません。<br>「薬の登録」タブから追加してください。</p>';
+      document.getElementById('today-progress').textContent = '0 / 0 服用済み';
+      document.getElementById('progress-fill').style.width = '0%';
+      return;
+    }
+
+    // 全タスク集計
+    let total = 0, done = 0;
+    medicines.forEach(m => {
+      m.timings.forEach(t => {
+        total++;
+        if (todayLog[m.id]?.[t]?.taken) done++;
+      });
+    });
+
+    document.getElementById('today-progress').textContent = `${done} / ${total} 服用済み`;
+    document.getElementById('progress-fill').style.width = total > 0 ? `${Math.round(done/total*100)}%` : '0%';
+
+    // タイミング別グループ表示
+    let html = '';
+    TIMINGS.forEach(timing => {
+      const medsForTiming = medicines.filter(m => m.timings.includes(timing));
+      if (medsForTiming.length === 0) return;
+
+      const timingEmoji = { '朝': '🌅', '昼': '☀️', '夜': '🌙', '就寝前': '🛏️' };
+      html += `<div class="timing-group">
+        <div class="timing-label">${timingEmoji[timing] || ''} ${timing}</div>`;
+
+      medsForTiming.forEach(m => {
+        const entry = todayLog[m.id]?.[timing];
+        const taken = entry?.taken || false;
+        const time = entry?.time ? formatTime(entry.time) : '';
+        const sub = [m.dose, m.memo].filter(Boolean).join('・');
+        html += `<div class="med-item ${taken ? 'taken' : ''}" onclick="toggleTaken('${m.id}','${timing}')">
+          <div class="med-check">
+            <span class="med-check-icon">✓</span>
+          </div>
+          <div class="med-info">
+            <div class="med-name">${escHtml(m.name)}</div>
+            ${sub ? `<div class="med-dose">${escHtml(sub)}</div>` : ''}
+          </div>
+          ${taken ? `<div class="med-time">${time}</div>` : ''}
+        </div>`;
+      });
+
+      html += '</div>';
+    });
+
+    document.getElementById('today-list').innerHTML = html;
+  }
+
+  function toggleTaken(medId, timing) {
+    const { logs } = getData();
+    const key = todayKey();
+    if (!logs[key]) logs[key] = {};
+    if (!logs[key][medId]) logs[key][medId] = {};
+    const current = logs[key][medId][timing]?.taken || false;
+    logs[key][medId][timing] = {
+      taken: !current,
+      time: !current ? new Date().toISOString() : null
+    };
+    saveLogs(logs);
+    renderToday();
+    if (!current) showToast('服用を記録しました');
+  }
+
+  // ==============================
+  // タブ2：薬の登録
+  // ==============================
+  function toggleTiming(labelEl) {
+    // チェックボックスのトグル（クリックイベントの後に状態が変わるので少し遅延）
+    setTimeout(() => {
+      const cb = labelEl.querySelector('input[type="checkbox"]');
+      labelEl.classList.toggle('selected', cb.checked);
+    }, 0);
+  }
+
+  function getSelectedTimings(containerId) {
+    return Array.from(
+      document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)
+    ).map(cb => cb.value);
+  }
+
+  function saveMedicine() {
+    const name = document.getElementById('med-name').value.trim();
+    const dose = document.getElementById('med-dose').value.trim();
+    const memo = document.getElementById('med-memo').value.trim();
+    const timings = getSelectedTimings('timing-checkboxes');
+    const editId = document.getElementById('edit-id').value;
+
+    if (!name) { showToast('薬の名前を入力してください'); return; }
+    if (timings.length === 0) { showToast('服用タイミングを選択してください'); return; }
+
+    const { medicines } = getData();
+
+    if (editId) {
+      const idx = medicines.findIndex(m => m.id === editId);
+      if (idx !== -1) {
+        medicines[idx] = { ...medicines[idx], name, dose, memo, timings };
+        showToast('薬の情報を更新しました');
+      }
+    } else {
+      medicines.push({ id: generateId(), name, dose, memo, timings });
+      showToast('薬を登録しました');
+    }
+
+    saveMedicines(medicines);
+    resetForm();
+    renderMedicineList();
+  }
+
+  function resetForm() {
+    document.getElementById('med-name').value = '';
+    document.getElementById('med-dose').value = '';
+    document.getElementById('med-memo').value = '';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('form-title').textContent = '薬を登録する';
+    document.getElementById('cancel-edit-btn').style.display = 'none';
+    document.querySelectorAll('#timing-checkboxes input[type="checkbox"]').forEach(cb => {
+      cb.checked = false;
+      cb.closest('label').classList.remove('selected');
+    });
+  }
+
+  function cancelEdit() {
+    resetForm();
+  }
+
+  function deleteMedicine(id) {
+    if (!confirm('この薬を削除しますか？\n（過去の服薬記録は残ります）')) return;
+    const { medicines } = getData();
+    saveMedicines(medicines.filter(m => m.id !== id));
+    renderMedicineList();
+    showToast('削除しました');
+  }
+
+  function openEditModal(id) {
+    const { medicines } = getData();
+    const m = medicines.find(m => m.id === id);
+    if (!m) return;
+
+    document.getElementById('modal-edit-id').value = id;
+    document.getElementById('modal-name').value = m.name;
+    document.getElementById('modal-dose').value = m.dose || '';
+    document.getElementById('modal-memo').value = m.memo || '';
+
+    document.querySelectorAll('#modal-timings input[type="checkbox"]').forEach(cb => {
+      const checked = m.timings.includes(cb.value);
+      cb.checked = checked;
+      cb.closest('label').classList.toggle('selected', checked);
+    });
+
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+
+  function saveModal() {
+    const id = document.getElementById('modal-edit-id').value;
+    const name = document.getElementById('modal-name').value.trim();
+    const dose = document.getElementById('modal-dose').value.trim();
+    const memo = document.getElementById('modal-memo').value.trim();
+    const timings = getSelectedTimings('modal-timings');
+
+    if (!name) { showToast('薬の名前を入力してください'); return; }
+    if (timings.length === 0) { showToast('服用タイミングを選択してください'); return; }
+
+    const { medicines } = getData();
+    const idx = medicines.findIndex(m => m.id === id);
+    if (idx !== -1) {
+      medicines[idx] = { ...medicines[idx], name, dose, memo, timings };
+      saveMedicines(medicines);
+      showToast('薬の情報を更新しました');
+    }
+
+    closeModal();
+    renderMedicineList();
+  }
+
+  function renderMedicineList() {
+    const { medicines } = getData();
+    const container = document.getElementById('medicine-list');
+
+    if (medicines.length === 0) {
+      container.innerHTML = '<p class="empty-msg">まだ薬が登録されていません</p>';
+      return;
+    }
+
+    container.innerHTML = medicines.map(m => {
+      const sub = [m.dose, m.timings.join('・'), m.memo].filter(Boolean).join(' ／ ');
+      return `<div class="medicine-list-item">
+        <div class="medicine-list-info">
+          <div class="name">${escHtml(m.name)}</div>
+          <div class="sub">${escHtml(sub)}</div>
+        </div>
+        <div class="medicine-list-actions">
+          <button class="btn btn-secondary" onclick="openEditModal('${m.id}')">編集</button>
+          <button class="btn btn-danger" onclick="deleteMedicine('${m.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ==============================
+  // バックアップ・復元
+  // ==============================
+  function exportData() {
+    const data = getData();
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'medlog_backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('バックアップを保存しました');
+  }
+
+  function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.medicines || !data.logs) throw new Error('形式が不正です');
+        if (!confirm('現在のデータを上書きして復元しますか？')) {
+          event.target.value = '';
+          return;
+        }
+        saveMedicines(data.medicines);
+        saveLogs(data.logs);
+        renderMedicineList();
+        renderToday();
+        showToast('データを復元しました');
+      } catch {
+        showToast('ファイルの読み込みに失敗しました');
+      }
+      event.target.value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  // ==============================
+  // タブ3：服薬履歴
+  // ==============================
+  function renderHistory() {
+    const { medicines, logs } = getData();
+    const container = document.getElementById('history-list');
+
+    if (medicines.length === 0) {
+      container.innerHTML = '<p class="empty-msg">薬が登録されていません</p>';
+      return;
+    }
+
+    // 過去の全日付（今日を含む直近30日 + ログにある日付）
+    const dateSet = new Set(Object.keys(logs));
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      dateSet.add(k);
+    }
+
+    const dates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
+
+    let html = '';
+    dates.forEach(dateKey => {
+      const dayLog = logs[dateKey] || {};
+      let dayHtml = '';
+
+      medicines.forEach(m => {
+        m.timings.forEach(timing => {
+          const entry = dayLog[m.id]?.[timing];
+          const taken = entry?.taken || false;
+          const time = entry?.time ? formatTime(entry.time) : null;
+          const sub = [m.dose, m.memo].filter(Boolean).join('・');
+
+          dayHtml += `<div class="history-item">
+            <span class="history-status">${taken ? '✅' : '❌'}</span>
+            <div style="flex:1;min-width:0">
+              <span class="history-med-name">${escHtml(m.name)}</span>
+              ${sub ? `<span style="font-size:12px;color:#bbb;margin-left:6px">${escHtml(sub)}</span>` : ''}
+            </div>
+            <span class="history-timing">${timing}</span>
+            ${taken && time
+              ? `<span class="history-time">${time}</span>`
+              : taken ? '' : `<span class="history-missed">未服用</span>`}
+          </div>`;
+        });
+      });
+
+      if (dayHtml) {
+        html += `<div class="card">
+          <div class="history-date">${formatDateLabel(dateKey)}</div>
+          ${dayHtml}
+        </div>`;
+      }
+    });
+
+    container.innerHTML = html || '<p class="empty-msg">履歴がありません</p>';
+  }
+
+  // ==============================
+  // ユーティリティ
+  // ==============================
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  // モーダル外クリックで閉じる
+  document.getElementById('modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // ==============================
+  // 初期化
+  // ==============================
+  renderToday();
+</script>
+</body>
+</html>
