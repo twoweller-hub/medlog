@@ -121,7 +121,7 @@ medlog/
 | `medType(m)` | medicine の type を返す（未定義時は `"regular"`） |
 | `renderToday()` | 今日タブを再描画 |
 | `renderHistory()` | 履歴タブを `_historyYM` の月で再描画 |
-| `renderMedicineList()` | 登録済み薬一覧を再描画 |
+| `renderMedicineList()` | 登録済み薬一覧を再描画し、SortableJSを初期化 |
 | `toggleTaken(medId, timing)` | 定期服用のチェックON/OFF |
 | `addPrnDose(medId)` | 頓服の服用記録を追加 |
 | `removePrnDose(medId, isoStr)` | 頓服の服用記録を削除 |
@@ -175,6 +175,16 @@ Firebase Realtime Database に移行する際もこの形式のまま使用可�
 - [ ] **Firebase Realtime Database 移行**（複数端末リアルタイム同期）
 - [ ] **履歴のカレンダー表示**（月全体の達成状況を一目で確認）
 - [ ] **服用終了日の設定**（処方期間の管理）
+
+---
+
+## 外部ライブラリ
+
+| ライブラリ | 用途 | 読み込み方法 |
+|-----------|------|------------|
+| [SortableJS](https://sortablejs.github.io/Sortable/) v1.15.0 | 薬の登録タブでの並び替え（ドラッグ＆ドロップ） | CDN（要インターネット接続） |
+
+SortableJSはCDNから読み込むため、**初回起動時にインターネット接続が必要**。一度ブラウザにキャッシュされれば以降はオフラインでも動作する。
 
 ---
 

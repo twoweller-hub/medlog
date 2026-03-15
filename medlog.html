@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>服薬管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -311,6 +312,16 @@
     .medicine-list-info .name { font-size: 15px; font-weight: 600; }
     .medicine-list-info .sub { font-size: 12px; color: #999; margin-top: 2px; }
     .medicine-list-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .drag-handle {
+      color: #ccc;
+      font-size: 18px;
+      cursor: grab;
+      padding: 0 8px 0 0;
+      flex-shrink: 0;
+      user-select: none;
+      touch-action: none;
+    }
+    .sortable-ghost { opacity: 0.4; background: #e8f0ff; }
     .medicine-list-item.paused { opacity: 0.5; }
     .btn-pause { background: #e8ecf0; color: #555; font-size: 13px; padding: 6px 12px; }
     .btn-resume { background: #34c678; color: white; font-size: 13px; padding: 6px 12px; }
@@ -1054,7 +1065,13 @@
       return;
     }
 
+    if (window._medicinesSortable) {
+      window._medicinesSortable.destroy();
+      window._medicinesSortable = null;
+    }
+
     container.innerHTML = medicines.map(m => {
+
       const type = medType(m);
       const badgeHtml = type === 'prn'
         ? '<span class="badge badge-prn">頓服</span>'
@@ -1065,7 +1082,8 @@
       if (m.memo) subParts.push(m.memo);
       const sub = subParts.join(' ／ ');
       const paused = m.active === false;
-      return `<div class="medicine-list-item${paused ? ' paused' : ''}">
+      return `<div class="medicine-list-item${paused ? ' paused' : ''}" data-id="${m.id}">
+        <span class="drag-handle">☰</span>
         <div class="medicine-list-info">
           <div class="name">${escHtml(m.name)}${badgeHtml}</div>
           <div class="sub">${paused ? '一時停止中　' : ''}${escHtml(sub)}</div>
@@ -1079,6 +1097,20 @@
         </div>
       </div>`;
     }).join('');
+
+    if (typeof Sortable !== 'undefined') {
+      window._medicinesSortable = new Sortable(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        onEnd(evt) {
+          const { medicines } = getData();
+          const [moved] = medicines.splice(evt.oldIndex, 1);
+          medicines.splice(evt.newIndex, 0, moved);
+          saveMedicines(medicines);
+        }
+      });
+    }
   }
 
   // ==============================
