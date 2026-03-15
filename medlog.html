@@ -357,7 +357,11 @@
     .history-timing { color: #999; font-size: 12px; }
     .history-time { color: #34c678; font-size: 12px; font-weight: 600; flex-shrink: 0; }
     .history-prn-time { color: #e67e22; font-size: 12px; font-weight: 600; flex-shrink: 0; }
-    .history-missed { color: #ff4d4d; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+    .history-missed {
+      color: #ff4d4d; font-size: 12px; font-weight: 600; flex-shrink: 0;
+      cursor: pointer; text-decoration: underline dotted;
+    }
+    .history-time { cursor: pointer; text-decoration: underline dotted; }
 
     /* 編集モーダル */
     .modal-overlay {
@@ -1094,8 +1098,9 @@
             </div>
             <span class="history-timing">${timing}</span>
             ${taken && time
-              ? `<span class="history-time">${time}</span>`
-              : taken ? '' : `<span class="history-missed">未服用</span>`}
+              ? `<span class="history-time" onclick="openTimeEdit('${m.id}','${timing}','${entry.time}','${dateKey}')">${time} ✎</span>`
+              : taken ? ''
+              : `<span class="history-missed" onclick="openHistoryMissedEdit('${dateKey}','${m.id}','${timing}','${escHtml(m.name)}')">未服用 → 記録する</span>`}
           </div>`;
         });
       });
@@ -1156,17 +1161,24 @@
   // ==============================
   // 時刻修正モーダル
   // ==============================
-  let _timeEditContext = null; // { type: 'regular'|'prn', medId, timing?, oldIso }
+  let _timeEditContext = null; // { type, medId, timing?, oldIso, dateKey, isNew? }
 
-  function openTimeEdit(medId, timing, isoStr) {
-    _timeEditContext = { type: 'regular', medId, timing, oldIso: isoStr };
+  function openTimeEdit(medId, timing, isoStr, dateKey) {
+    _timeEditContext = { type: 'regular', medId, timing, oldIso: isoStr, dateKey: dateKey || todayKey() };
     document.getElementById('time-modal-title').textContent = `${timing}の服用時刻を修正`;
     document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
     document.getElementById('time-modal-overlay').classList.add('open');
   }
 
+  function openHistoryMissedEdit(dateKey, medId, timing, medName) {
+    _timeEditContext = { type: 'regular', medId, timing, oldIso: null, dateKey, isNew: true };
+    document.getElementById('time-modal-title').textContent = `${medName}（${timing}）の服用時刻を入力`;
+    document.getElementById('time-input').value = '';
+    document.getElementById('time-modal-overlay').classList.add('open');
+  }
+
   function openPrnTimeEdit(medId, isoStr) {
-    _timeEditContext = { type: 'prn', medId, oldIso: isoStr };
+    _timeEditContext = { type: 'prn', medId, oldIso: isoStr, dateKey: todayKey() };
     document.getElementById('time-modal-title').textContent = '頓服の服用時刻を修正';
     document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
     document.getElementById('time-modal-overlay').classList.add('open');
@@ -1183,28 +1195,35 @@
     if (!timeValue) { showToast('時刻を入力してください'); return; }
 
     const { logs } = getData();
-    const key = todayKey();
+    const key = _timeEditContext.dateKey;
     const [h, m] = timeValue.split(':').map(Number);
-    const newDate = new Date(_timeEditContext.oldIso || new Date());
-    newDate.setHours(h, m, 0, 0);
+
+    // 日付はdateKeyから、時刻はinputから組み立てる
+    const [y, mo, d] = key.split('-').map(Number);
+    const newDate = new Date(y, mo - 1, d, h, m, 0, 0);
     const newIso = newDate.toISOString();
 
+    if (!logs[key]) logs[key] = {};
+
     if (_timeEditContext.type === 'regular') {
-      const { medId, timing } = _timeEditContext;
-      if (logs[key]?.[medId]?.[timing]) {
-        logs[key][medId][timing].time = newIso;
-      }
+      const { medId, timing, isNew } = _timeEditContext;
+      if (!logs[key][medId]) logs[key][medId] = {};
+      logs[key][medId][timing] = { taken: true, time: newIso };
+      saveLogs(logs);
+      closeTimeModal();
+      if (key === todayKey()) renderToday();
+      renderHistory();
+      showToast(isNew ? '服用を記録しました' : '時刻を修正しました');
     } else {
       const { medId, oldIso } = _timeEditContext;
-      if (logs[key]?.[medId]?.prn) {
-        logs[key][medId].prn = logs[key][medId].prn.map(t => t === oldIso ? newIso : t);
-      }
+      if (!logs[key][medId]) logs[key][medId] = {};
+      if (!logs[key][medId].prn) logs[key][medId].prn = [];
+      logs[key][medId].prn = logs[key][medId].prn.map(t => t === oldIso ? newIso : t);
+      saveLogs(logs);
+      closeTimeModal();
+      renderToday();
+      showToast('時刻を修正しました');
     }
-
-    saveLogs(logs);
-    closeTimeModal();
-    renderToday();
-    showToast('時刻を修正しました');
   }
 
   document.getElementById('time-modal-overlay').addEventListener('click', function(e) {
