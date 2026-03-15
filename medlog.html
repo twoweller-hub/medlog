@@ -1099,7 +1099,7 @@
           const sub = [m.dose, m.memo].filter(Boolean).join('・');
 
           dayHtml += `<div class="history-item">
-            <span class="history-status" style="${taken ? 'cursor:pointer' : ''}" ${taken ? `onclick="unmarkHistoryTaken('${dateKey}','${m.id}','${timing}','${escHtml(m.name)}')"` : ''}>${taken ? '✅' : '❌'}</span>
+            <span class="history-status">${taken ? '✅' : '❌'}</span>
             <div style="flex:1;min-width:0">
               <span class="history-med-name">${escHtml(m.name)}</span>
               ${sub ? `<span style="font-size:12px;color:#bbb;margin-left:6px">${escHtml(sub)}</span>` : ''}
@@ -1252,17 +1252,6 @@
     }
   }
 
-  function unmarkHistoryTaken(dateKey, medId, timing, medName) {
-    if (!confirm(`「${medName}」（${timing}）の服用記録を取り消しますか？`)) return;
-    const { logs } = getData();
-    if (logs[dateKey]?.[medId]?.[timing]) {
-      logs[dateKey][medId][timing] = { taken: false, time: null };
-      saveLogs(logs);
-      if (dateKey === todayKey()) renderToday();
-      renderHistory();
-      showToast('服用記録を取り消しました');
-    }
-  }
 
   document.getElementById('time-modal-overlay').addEventListener('click', function(e) {
     if (e.target === this) closeTimeModal();
