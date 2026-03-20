@@ -26,23 +26,40 @@ medlog/
 
 ## アプリ更新手順
 
-機能追加・修正のたびに以下の手順を踏む。
+機能追加・修正のたびに以下の手順を踏む。アンインストール不要・データは保持される。
 
-### 1. index.html を編集（Claude Codeで作業）
+### 1. index.html を編集
 
-### 2. コミット（Claude Codeが実行）
+### 2. sw.js のキャッシュバージョンを上げる（必須）
+
+`sw.js` の1行目のキャッシュ名を更新しないと、Galaxy S25に変更が反映されない。
+
+```js
+// 変更前
+const CACHE = 'medlog-v1';
+
+// 変更後（数字を1つ増やす）
+const CACHE = 'medlog-v2';
+```
+
+**なぜ必要か：** PWAはService Workerがページをキャッシュして配信している。
+`sw.js` が変わらない限りChromeは古いキャッシュを使い続けるため、
+`index.html` を更新しても反映されない。バージョン番号を上げることで
+Chromeが新しいSWとして認識し、全ファイルを再キャッシュする。
+
+### 3. コミット
 ```bash
-git add index.html
+git add index.html sw.js
 git commit -m "変更内容の説明"
 ```
 
-### 3. GitHubへ送信（ターミナルで手動実行）
+### 4. GitHubへ送信（ターミナルで手動実行）
 ```bash
 git push https://twoweller-hub:【トークン】@github.com/twoweller-hub/medlog.git main
 ```
-※ トークンは Claude Code との会話履歴を参照
+※ GitHubのPersonal Access Token。紛失した場合は github.com → Settings → Developer settings → Personal access tokens で再発行。
 
-### 4. Galaxy S25で自動更新
+### 5. Galaxy S25で自動更新
 1〜2分後にGalaxy S25のPWAアプリを開くと自動で更新される。
 （更新されない場合はアプリを一度閉じて再度開く）
 
