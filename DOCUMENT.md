@@ -2,15 +2,80 @@
 
 ## 概要
 
-`medlog.html` を**ダブルクリックしてブラウザで開くだけ**で使えるシンプルな服薬管理Webアプリ。
-サーバー不要・インストール不要。HTML + CSS + JavaScript の1ファイル完結。
+個人用の服薬管理Webアプリ。GitHub Pages で公開し、Galaxy S25 に PWA（スマホアプリ風）としてインストールして使用。
 
 **対象ユーザー：** プログラミング知識のない個人ユーザー
-**主な使用環境：** Mac（薬の登録）＋ Galaxy S25（日々の服薬チェック）
+**主な使用環境：** Mac（薬の登録・コード編集）＋ Galaxy S25（日々の服薬チェック）
+**公開URL：** `https://twoweller-hub.github.io/medlog/`
 
 ---
 
-## ファイル構成
+## 現在のファイル構成（2026-03-20 PWA化後）
+
+```
+medlog/
+├── index.html           ← アプリ本体（編集対象はこれ）
+├── manifest.webmanifest ← PWA設定（アプリ名・アイコン・表示モード）
+├── sw.js                ← Service Worker（オフライン動作・キャッシュ）
+├── icon-192.png         ← アプリアイコン 192×192（💊絵文字・青背景）
+├── icon-512.png         ← アプリアイコン 512×512（💊絵文字・青背景）
+└── DOCUMENT.md          ← このファイル
+```
+
+---
+
+## アプリ更新手順
+
+機能追加・修正のたびに以下の手順を踏む。
+
+### 1. index.html を編集（Claude Codeで作業）
+
+### 2. コミット（Claude Codeが実行）
+```bash
+git add index.html
+git commit -m "変更内容の説明"
+```
+
+### 3. GitHubへ送信（ターミナルで手動実行）
+```bash
+git push https://twoweller-hub:【トークン】@github.com/twoweller-hub/medlog.git main
+```
+※ トークンは Claude Code との会話履歴を参照
+
+### 4. Galaxy S25で自動更新
+1〜2分後にGalaxy S25のPWAアプリを開くと自動で更新される。
+（更新されない場合はアプリを一度閉じて再度開く）
+
+---
+
+## PWA設定の概要
+
+| 項目 | 内容 |
+|------|------|
+| ホスティング | GitHub Pages（`twoweller-hub/medlog` リポジトリ） |
+| 表示モード | standalone（URLバーなし・独立ウィンドウ） |
+| オフライン動作 | Service Worker（sw.js）によるキャッシュで実現 |
+| アイコン生成 | macOSの Swift で絵文字PNG を生成（`make_icons.swift`） |
+| SortableJS | CDN読み込み（初回のみネット接続必要、以降SW がキャッシュ） |
+
+---
+
+## Mac↔Galaxy S25 のデータ同期
+
+localStorageはデバイスごとに独立しているため、データは自動同期されない。
+「薬の登録」タブのバックアップ/復元機能で手動同期する。
+
+1. Mac側（またはGalaxy側）でバックアップ → `medlog_backup.json` をダウンロード
+2. Googleドライブに保存
+3. もう一方の端末でGoogleドライブから取得 → 復元
+
+---
+
+## ～ 以下、開発履歴 ～
+
+---
+
+## ファイル構成（初期）
 
 ```
 medlog/
