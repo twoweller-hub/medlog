@@ -417,24 +417,13 @@
       align-items: center;
       background: #fff3e0;
       border-radius: 20px;
-      padding: 2px 6px 2px 8px;
+      padding: 4px 12px;
       font-size: 12px;
       color: #e67e22;
       font-weight: 600;
-      gap: 2px;
-    }
-    .history-prn-chip span { cursor: pointer; text-decoration: underline dotted; }
-    .history-prn-chip button {
-      background: none;
-      border: none;
       cursor: pointer;
-      color: #e67e22;
-      font-size: 13px;
-      line-height: 1;
-      padding: 0 0 0 2px;
-      opacity: 0.6;
     }
-    .history-prn-chip button:hover { opacity: 1; }
+    .history-prn-chip:active { opacity: 0.7; }
     .btn-add-prn {
       font-size: 12px;
       color: #f5a623;
@@ -1318,10 +1307,7 @@
         const sub = [m.dose, m.memo].filter(Boolean).join('・');
         if (times.length > 0) {
           const chipsHtml = times.map(iso =>
-            `<span class="history-prn-chip">
-              <span onclick="openPrnTimeEdit('${m.id}','${iso}','${dateKey}')">${formatTime(iso)} ✎</span>
-              <button onclick="removePrnDoseFromHistory('${m.id}','${iso}','${dateKey}')">×</button>
-            </span>`
+            `<span class="history-prn-chip" onclick="openPrnTimeEdit('${m.id}','${iso}','${dateKey}')">${formatTime(iso)}</span>`
           ).join('');
           dayHtml += `<div class="history-item" style="flex-wrap:wrap">
             <span class="history-status">💊</span>
@@ -1479,7 +1465,8 @@
     _timeEditContext = { type: 'prn', medId, oldIso: isoStr, dateKey: dateKey || todayKey() };
     document.getElementById('time-modal-title').textContent = '頓服の服用時刻を修正';
     document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
-    document.getElementById('time-modal-unmark-btn').style.display = 'none';
+    document.getElementById('time-modal-unmark-btn').style.display = '';
+    document.getElementById('time-modal-unmark-btn').textContent = '削除する';
     document.getElementById('time-modal-overlay').classList.add('open');
   }
 
@@ -1528,10 +1515,19 @@
 
   function unmarkFromModal() {
     if (!_timeEditContext) return;
-    const { dateKey, medId, timing } = _timeEditContext;
+    const { type, dateKey, medId, timing, oldIso } = _timeEditContext;
     if (!confirm('服用記録を取り消しますか？')) return;
     const { logs } = getData();
-    if (logs[dateKey]?.[medId]?.[timing]) {
+    if (type === 'prn') {
+      if (!logs[dateKey]?.[medId]?.prn) return;
+      logs[dateKey][medId].prn = logs[dateKey][medId].prn.filter(t => t !== oldIso);
+      saveLogs(logs);
+      closeTimeModal();
+      if (dateKey === todayKey()) renderToday();
+      renderHistory();
+      showToast('記録を取り消しました');
+    } else {
+      if (!logs[dateKey]?.[medId]?.[timing]) return;
       logs[dateKey][medId][timing] = { taken: false, time: null };
       saveLogs(logs);
       closeTimeModal();
