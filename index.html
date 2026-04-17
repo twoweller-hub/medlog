@@ -1307,7 +1307,7 @@
         const sub = [m.dose, m.memo].filter(Boolean).join('・');
         if (times.length > 0) {
           const chipsHtml = times.map(iso =>
-            `<span class="history-prn-chip" onclick="openPrnTimeEdit('${m.id}','${iso}','${dateKey}')">${formatTime(iso)}</span>`
+            `<span class="history-prn-chip" onclick="openPrnTimeEdit('${m.id}','${iso}','${dateKey}')">${formatTime(iso)} ✎</span>`
           ).join('');
           dayHtml += `<div class="history-item" style="flex-wrap:wrap">
             <span class="history-status">💊</span>
