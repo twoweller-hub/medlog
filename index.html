@@ -412,6 +412,42 @@
       cursor: pointer; text-decoration: underline dotted;
     }
     .history-time { cursor: pointer; text-decoration: underline dotted; }
+    .history-prn-chip {
+      display: inline-flex;
+      align-items: center;
+      background: #fff3e0;
+      border-radius: 20px;
+      padding: 2px 6px 2px 8px;
+      font-size: 12px;
+      color: #e67e22;
+      font-weight: 600;
+      gap: 2px;
+    }
+    .history-prn-chip span { cursor: pointer; text-decoration: underline dotted; }
+    .history-prn-chip button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #e67e22;
+      font-size: 13px;
+      line-height: 1;
+      padding: 0 0 0 2px;
+      opacity: 0.6;
+    }
+    .history-prn-chip button:hover { opacity: 1; }
+    .btn-add-prn {
+      font-size: 12px;
+      color: #f5a623;
+      background: none;
+      border: 1.5px dashed #f5a623;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+    .btn-add-prn:active { opacity: 0.7; }
 
     /* 編集モーダル */
     .modal-overlay {
@@ -676,6 +712,25 @@
       <button class="btn btn-primary" onclick="saveTimeEdit()">保存</button>
     </div>
     <button class="btn btn-danger" id="time-modal-unmark-btn" style="display:none;width:100%;margin-top:8px" onclick="unmarkFromModal()">未服用にする</button>
+  </div>
+</div>
+
+<!-- 頓服追加モーダル -->
+<div class="modal-overlay" id="add-prn-modal-overlay">
+  <div class="time-modal" style="max-width:320px;text-align:left">
+    <h3 id="add-prn-modal-title">頓服を記録</h3>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;display:block">薬を選択</label>
+      <select id="add-prn-select" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;"></select>
+    </div>
+    <div style="margin-bottom:4px">
+      <label style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;display:block">服用時刻</label>
+      <input type="time" id="add-prn-time-input">
+    </div>
+    <div class="time-modal-actions">
+      <button class="btn btn-secondary" onclick="closeAddPrnModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveAddPrn()">記録する</button>
+    </div>
   </div>
 </div>
 
@@ -1257,23 +1312,30 @@
       });
 
       // 頓服の履歴（アクティブ）
-      prnMeds.forEach(m => {
-        if (m.registeredAt && dateKey < m.registeredAt) return;
+      const activePrnForDate = prnMeds.filter(m => !(m.registeredAt && dateKey < m.registeredAt));
+      activePrnForDate.forEach(m => {
         const times = dayLog[m.id]?.prn || [];
         const sub = [m.dose, m.memo].filter(Boolean).join('・');
         if (times.length > 0) {
-          const timesStr = times.map(t => formatTime(t)).join(' / ');
-          dayHtml += `<div class="history-item">
+          const chipsHtml = times.map(iso =>
+            `<span class="history-prn-chip">
+              <span onclick="openPrnTimeEdit('${m.id}','${iso}','${dateKey}')">${formatTime(iso)} ✎</span>
+              <button onclick="removePrnDoseFromHistory('${m.id}','${iso}','${dateKey}')">×</button>
+            </span>`
+          ).join('');
+          dayHtml += `<div class="history-item" style="flex-wrap:wrap">
             <span class="history-status">💊</span>
             <div style="flex:1;min-width:0">
-              <span class="history-med-name">${escHtml(m.name)}</span>
-              ${sub ? `<span style="font-size:12px;color:#bbb;margin-left:6px">${escHtml(sub)}</span>` : ''}
+              <div><span class="history-med-name">${escHtml(m.name)}</span>${sub ? `<span style="font-size:12px;color:#bbb;margin-left:6px">${escHtml(sub)}</span>` : ''}</div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${chipsHtml}</div>
             </div>
             <span class="history-timing">頓服</span>
-            <span class="history-prn-time">${timesStr}（${times.length}回）</span>
           </div>`;
         }
       });
+      if (activePrnForDate.length > 0) {
+        dayHtml += `<button class="btn-add-prn" onclick="openAddPrnModal('${dateKey}')">＋ 頓服を追加</button>`;
+      }
 
       // 頓服の履歴（停止中：ログがある日のみ）
       pausedPrnMeds.forEach(m => {
@@ -1341,6 +1403,60 @@
     document.getElementById('time-modal-overlay').classList.add('open');
   }
 
+  function removePrnDoseFromHistory(medId, isoStr, dateKey) {
+    const { logs } = getData();
+    if (!logs[dateKey]?.[medId]?.prn) return;
+    logs[dateKey][medId].prn = logs[dateKey][medId].prn.filter(t => t !== isoStr);
+    saveLogs(logs);
+    if (dateKey === todayKey()) renderToday();
+    renderHistory();
+    showToast('記録を取り消しました');
+  }
+
+  let _addPrnDateKey = null;
+
+  function openAddPrnModal(dateKey) {
+    _addPrnDateKey = dateKey;
+    const { medicines } = getData();
+    const prnMeds = medicines.filter(m => medType(m) === 'prn' && m.active !== false);
+    const select = document.getElementById('add-prn-select');
+    select.innerHTML = prnMeds.map(m => `<option value="${m.id}">${escHtml(m.name)}</option>`).join('');
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('add-prn-time-input').value = `${hh}:${mm}`;
+    const [y, mo, d] = dateKey.split('-').map(Number);
+    document.getElementById('add-prn-modal-title').textContent = `頓服を記録（${mo}月${d}日）`;
+    document.getElementById('add-prn-modal-overlay').classList.add('open');
+  }
+
+  function closeAddPrnModal() {
+    document.getElementById('add-prn-modal-overlay').classList.remove('open');
+    _addPrnDateKey = null;
+  }
+
+  function saveAddPrn() {
+    const timeValue = document.getElementById('add-prn-time-input').value;
+    if (!timeValue) { showToast('時刻を入力してください'); return; }
+    const medId = document.getElementById('add-prn-select').value;
+    if (!medId) { showToast('薬を選択してください'); return; }
+    const dateKey = _addPrnDateKey;
+    const [h, m] = timeValue.split(':').map(Number);
+    const [y, mo, d] = dateKey.split('-').map(Number);
+    const newIso = new Date(y, mo - 1, d, h, m, 0, 0).toISOString();
+    const { logs } = getData();
+    if (!logs[dateKey]) logs[dateKey] = {};
+    if (!logs[dateKey][medId]) logs[dateKey][medId] = {};
+    if (!logs[dateKey][medId].prn) logs[dateKey][medId].prn = [];
+    logs[dateKey][medId].prn.push(newIso);
+    logs[dateKey][medId].prn.sort();
+    saveLogs(logs);
+    closeAddPrnModal();
+    if (dateKey === todayKey()) renderToday();
+    renderHistory();
+    showToast('服用を記録しました');
+  }
+
   function recordMissedDose(dateKey, medId, timing) {
     const { logs } = getData();
     if (!logs[dateKey]) logs[dateKey] = {};
@@ -1359,8 +1475,8 @@
     document.getElementById('time-modal-overlay').classList.add('open');
   }
 
-  function openPrnTimeEdit(medId, isoStr) {
-    _timeEditContext = { type: 'prn', medId, oldIso: isoStr, dateKey: todayKey() };
+  function openPrnTimeEdit(medId, isoStr, dateKey) {
+    _timeEditContext = { type: 'prn', medId, oldIso: isoStr, dateKey: dateKey || todayKey() };
     document.getElementById('time-modal-title').textContent = '頓服の服用時刻を修正';
     document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
     document.getElementById('time-modal-unmark-btn').style.display = 'none';
@@ -1404,7 +1520,8 @@
       logs[key][medId].prn = logs[key][medId].prn.map(t => t === oldIso ? newIso : t);
       saveLogs(logs);
       closeTimeModal();
-      renderToday();
+      if (key === todayKey()) renderToday();
+      renderHistory();
       showToast('時刻を修正しました');
     }
   }
