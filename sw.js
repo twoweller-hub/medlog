@@ -1,4 +1,4 @@
-const CACHE = 'medlog-v2';
+const CACHE = 'medlog-v3';
 const URLS = [
   '/medlog/',
   '/medlog/index.html',
@@ -23,6 +23,23 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+
+  // index.html はネットワーク優先
+  if (url.pathname === '/medlog/' || url.pathname === '/medlog/index.html') {
+    e.respondWith(
+      fetch(e.request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // 画像・マニフェストはキャッシュ優先
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
   );
