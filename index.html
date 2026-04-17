@@ -1230,7 +1230,7 @@
             ${taken && time
               ? `<span class="history-time" onclick="openTimeEdit('${m.id}','${timing}','${entry.time}','${dateKey}')">${time} ✎</span>`
               : taken ? ''
-              : `<span class="history-missed" onclick="openHistoryMissedEdit('${dateKey}','${m.id}','${timing}','${escHtml(m.name)}')">未服用 → 記録する</span>`}
+              : `<span class="history-missed" onclick="recordMissedDose('${dateKey}','${m.id}','${timing}')">未服用 → 記録する</span>`}
           </div>`;
         });
       });
@@ -1339,6 +1339,16 @@
     document.getElementById('time-input').value = isoStr ? formatTime(isoStr) : '';
     document.getElementById('time-modal-unmark-btn').style.display = '';
     document.getElementById('time-modal-overlay').classList.add('open');
+  }
+
+  function recordMissedDose(dateKey, medId, timing) {
+    const { logs } = getData();
+    if (!logs[dateKey]) logs[dateKey] = {};
+    if (!logs[dateKey][medId]) logs[dateKey][medId] = {};
+    logs[dateKey][medId][timing] = { taken: true, time: new Date().toISOString() };
+    saveLogs(logs);
+    renderHistory();
+    showToast('服用を記録しました');
   }
 
   function openHistoryMissedEdit(dateKey, medId, timing, medName) {

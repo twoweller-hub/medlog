@@ -1,4 +1,4 @@
-const CACHE = 'medlog-v1';
+const CACHE = 'medlog-v2';
 const URLS = [
   '/medlog/',
   '/medlog/index.html',
